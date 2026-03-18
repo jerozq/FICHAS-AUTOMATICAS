@@ -44,7 +44,8 @@ const OBLIGATORIOS = [
 ];
 
 function App() {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+  const rawApiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+  const API_URL = rawApiUrl.match(/^https?:\/\//) ? rawApiUrl : `https://${rawApiUrl}`;
   console.log(API_URL);
   const [isLoading, setIsLoading] = useState(false);
   // Persist form data in localStorage under 'fichasFormData'
