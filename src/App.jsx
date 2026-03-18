@@ -44,6 +44,7 @@ const OBLIGATORIOS = [
 ];
 
 function App() {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
   const [isLoading, setIsLoading] = useState(false);
   // Persist form data in localStorage under 'fichasFormData'
   const [formData, setFormData] = useStickyState(DEFAULT_FORM_DATA, 'fichasFormData');
@@ -112,7 +113,7 @@ function App() {
     
     setIsLoading(true);
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/extract', {
+      const response = await fetch(`${API_URL}/api/extract`, {
         method: 'POST',
         body: data,
       });
@@ -170,7 +171,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/generate', {
+      const response = await fetch(`${API_URL}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -184,7 +185,7 @@ function App() {
 
       const result = await response.json();
       if (result.download_url) {
-        window.open(`http://127.0.0.1:8000${result.download_url}`, '_blank');
+        window.open(`${API_URL}${result.download_url}`, '_blank');
         
         // Opcional: preguntar si desean limpiar después de generar exitosamente
         if (window.confirm("¡Documentos generados y descargados!\n\n¿Deseas limpiar el formulario para comenzar un caso nuevo?")) {
@@ -299,7 +300,7 @@ function App() {
 
               {/* Template Download Button */}
               <a 
-                href="http://127.0.0.1:8000/api/template"
+                href={`${API_URL}/api/template`}
                 download="Plantilla_Defensoria.docx"
                 className="group relative flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-600 transition-all hover:bg-emerald-50 hover:border-emerald-300"
                 title="Descargar Plantilla Vacía"
