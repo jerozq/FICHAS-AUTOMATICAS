@@ -185,15 +185,29 @@ function App() {
         throw new Error('Error al generar los documentos en el servidor');
       }
 
-      const result = await response.json();
-      if (result.download_url) {
-        window.open(`${API_URL}${result.download_url}`, '_blank');
-        
-        // Opcional: preguntar si desean limpiar después de generar exitosamente
-        if (window.confirm("¡Documentos generados y descargados!\n\n¿Deseas limpiar el formulario para comenzar un caso nuevo?")) {
-           setFormData(DEFAULT_FORM_DATA);
-           window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+      // Convert response to blob for ZIP download
+      const blob = await response.blob();
+      
+      // Determine filename from response headers if possible, or use a default
+      let filename = `Fichas_${formData.cedula || 'Generadas'}.zip`;
+      const contentDisposition = response.headers.get('content-disposition');
+      if (contentDisposition && contentDisposition.includes('filename=')) {
+        filename = contentDisposition.split('filename=')[1].replace(/["']/g, '');
+      }
+
+      // Create object URL and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+      if (window.confirm("¡Documentos generados y descargados en un archivo ZIP!\n\n¿Deseas limpiar el formulario para comenzar un caso nuevo?")) {
+         setFormData(DEFAULT_FORM_DATA);
+         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (error) {
       console.error(error);
@@ -560,7 +574,7 @@ function App() {
               {isLoading ? (
                 <>
                   <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  <span>Generando Fichas PDF...</span>
+                  <span>Generando Fichas ZIP...</span>
                 </>
               ) : (
                 <>
