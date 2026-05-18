@@ -51,6 +51,7 @@ function App() {
   // Persist form data in localStorage under 'fichasFormData'
   const [formData, setFormData] = useStickyState(DEFAULT_FORM_DATA, 'fichasFormData');
   const [missingFields, setMissingFields] = useState([]);
+  const [uploadFeedback, setUploadFeedback] = useState(null);
 
   // Track active section for the sidebar spy (optional UX plus)
   const [activeSection, setActiveSection] = useState('identificacion');
@@ -97,6 +98,7 @@ function App() {
     if (window.confirm("¿Estás seguro de que quieres limpiar TODO el formulario? Los datos no guardados se perderán.")) {
       setFormData(DEFAULT_FORM_DATA);
       setMissingFields([]);
+      setUploadFeedback(null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -106,7 +108,11 @@ function App() {
     if (!file) return;
 
     if (!file.name.endsWith('.docx')) {
-      alert("Por favor sube un archivo Word (.docx)");
+      setUploadFeedback({
+        type: 'error',
+        title: 'Formato no valido',
+        message: 'Por favor sube un archivo Word con extension .docx.'
+      });
       return;
     }
 
@@ -114,6 +120,11 @@ function App() {
     data.append('file', file);
 
     setIsLoading(true);
+    setUploadFeedback({
+      type: 'info',
+      title: 'Analizando documento...',
+      message: `Procesando ${file.name}. Esto puede tardar unos segundos.`
+    });
     try {
       const response = await fetch(`${API_URL}/api/extract`, {
         method: 'POST',
@@ -121,7 +132,14 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Error al extraer datos');
+        let detail = 'Error al extraer datos';
+        try {
+          const errBody = await response.json();
+          detail = errBody.detail || detail;
+        } catch (_) {
+          // keep default message when backend does not return JSON
+        }
+        throw new Error(detail);
       }
 
       const result = await response.json();
@@ -135,12 +153,26 @@ function App() {
         const extractedKeys = Object.keys(result.extracted_data);
         setMissingFields(prev => prev.filter(f => !extractedKeys.includes(f)));
 
-        // Show lightweight toast insted of alert if possible, alert for now
-        alert(`¡Éxito! Se extrajeron y autocompletaron ${extractedKeys.length} campos desde el documento. Por favor, verifica.`);
+        const geminiUsed = result?.meta?.gemini_used;
+        const extractionSource = geminiUsed
+          ? 'Extraccion realizada solo con IA Gemini'
+          : 'Gemini no encontro datos confiables para autocompletar';
+
+        setUploadFeedback({
+          type: 'success',
+          title: 'Carga inteligente completada',
+          message: `Se autocompletaron ${extractedKeys.length} campos. Revisa y corrige lo necesario antes de generar PDFs.`,
+          source: extractionSource,
+          fieldsDetected: result?.meta?.fields_detected ?? extractedKeys.length
+        });
       }
     } catch (error) {
       console.error(error);
-      alert("Hubo un error comunicándose con el servidor local: " + error.message);
+      setUploadFeedback({
+        type: 'error',
+        title: 'No se pudo procesar el Word',
+        message: `Hubo un problema al comunicarse con el backend: ${error.message}`
+      });
     } finally {
       setIsLoading(false);
       e.target.value = null; // reset input wrapper
@@ -182,7 +214,14 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Error al generar los documentos en el servidor');
+        let detail = 'Error al generar los documentos en el servidor';
+        try {
+          const errBody = await response.json();
+          detail = errBody.detail || detail;
+        } catch (_) {
+          // keep default message when backend does not return JSON
+        }
+        throw new Error(detail);
       }
 
       // Convert response to blob for ZIP download
@@ -396,6 +435,42 @@ function App() {
             </p>
           </div>
         </div>
+
+        {uploadFeedback && (
+          <div className={`rounded-2xl border p-5 shadow-sm ${uploadFeedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200'
+              : uploadFeedback.type === 'error'
+                ? 'bg-rose-50 border-rose-200'
+                : 'bg-blue-50 border-blue-200'
+            }`}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className={`text-sm font-black uppercase tracking-wider ${uploadFeedback.type === 'success'
+                    ? 'text-emerald-700'
+                    : uploadFeedback.type === 'error'
+                      ? 'text-rose-700'
+                      : 'text-blue-700'
+                  }`}>
+                  {uploadFeedback.title}
+                </h3>
+                <p className="text-slate-700 mt-1">{uploadFeedback.message}</p>
+                {uploadFeedback.source && (
+                  <p className="text-slate-600 text-sm mt-2">{uploadFeedback.source}</p>
+                )}
+                {typeof uploadFeedback.fieldsDetected === 'number' && (
+                  <p className="text-slate-600 text-sm">Campos detectados por el backend: {uploadFeedback.fieldsDetected}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setUploadFeedback(null)}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-white"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* --- SECCIÓN 1: IDENTIFICACIÓN --- */}
         <section id="identificacion" className="scroll-mt-32">
