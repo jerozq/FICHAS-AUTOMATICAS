@@ -156,6 +156,7 @@ function App() {
         const geminiUsed = result?.meta?.gemini_used;
         const geminiError = result?.meta?.gemini_error;
         const geminiModel = result?.meta?.gemini_model;
+        const leakedKeyError = geminiError?.includes('GEMINI_API_KEY fue revocada o marcada como filtrada');
         const extractionSource = geminiUsed
           ? `Extraccion realizada con IA Gemini${geminiModel ? ` (${geminiModel})` : ''}`
           : (geminiError
@@ -166,7 +167,9 @@ function App() {
           type: geminiError && extractedKeys.length === 0 ? 'error' : 'success',
           title: geminiError && extractedKeys.length === 0 ? 'Gemini no pudo completar la carga' : 'Carga inteligente completada',
           message: geminiError && extractedKeys.length === 0
-            ? 'La extraccion automatica fallo temporalmente. Intenta subir el Word de nuevo en unos segundos.'
+            ? (leakedKeyError
+              ? 'La clave de Gemini fue revocada o marcada como filtrada. Debes crear una nueva clave y reiniciar el backend.'
+              : 'La extraccion automatica fallo temporalmente. Intenta subir el Word de nuevo en unos segundos.')
             : `Se autocompletaron ${extractedKeys.length} campos. Revisa y corrige lo necesario antes de generar PDFs.`,
           source: extractionSource,
           fieldsDetected: result?.meta?.fields_detected ?? extractedKeys.length
